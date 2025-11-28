@@ -1,77 +1,12 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
+import { QueryKey, useQuery, useQueryClient } from '@tanstack/react-query';
+
 import {
-  QueryKey,
-  useQuery,
-  useQueryClient
-} from '@tanstack/react-query';
-import type {
-  CreateEmployeeRequest,
-  Employee,
-  UpdateEmployeeRequest
-} from '@/features/employees/api';
-import {
-  createEmployee,
-  deleteEmployee,
-  listEmployees,
-  updateEmployee
-} from '@/features/employees/api';
-import {
-  CreateVehicleRequest,
-  UpdateVehicleRequest,
-  Vehicle
-} from '@/features/vehicles/api';
-import {
-  createVehicle,
-  deleteVehicle,
-  listVehicles,
-  updateVehicle
-} from '@/features/vehicles/api';
-import {
-  CreateRoleRequest,
-  Role,
-  UpdateRoleRequest
-} from '@/features/roles/api';
-import {
-  createRole,
-  deleteRole,
-  listRoles,
-  updateRole
-} from '@/features/roles/api';
-import {
-  CreateJobRequest,
-  Job,
-  UpdateJobRequest
-} from '@/features/jobs/api';
-import {
-  createJob,
-  deleteJob,
-  listJobs,
-  updateJob
-} from '@/features/jobs/api';
-import {
-  CreateJobTemplateRequest,
-  JobTemplate,
-  UpdateJobTemplateRequest
-} from '@/features/job-templates/api';
-import {
-  createJobTemplate,
-  deleteJobTemplate,
-  listJobTemplates,
-  updateJobTemplate
-} from '@/features/job-templates/api';
-import {
-  CreateTravelRequest,
-  TravelRequest,
-  UpdateTravelRequest
-} from '@/features/travel/api';
-import {
-  createTravelRequest,
-  deleteTravelRequest,
-  listTravelRequests,
-  updateTravelRequest
-} from '@/features/travel/api';
+  ResourceDefinition,
+  resourceDefinitions
+} from '@/components/resources/resource-config';
 
 type ResourcePanelProps<T extends { id: string }> = {
   title: string;
@@ -88,208 +23,20 @@ type ResourcePanelProps<T extends { id: string }> = {
 
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
 
-const resourceConfigs: Array<ResourcePanelProps<{ id: string }>> = [
-  {
-    title: 'Employees',
-    description: 'Core roster with tax + status metadata.',
-    queryKey: ['employees'],
-    listFn: listEmployees,
-    createFn: (payload) => createEmployee(payload as CreateEmployeeRequest),
-    updateFn: (id, payload) => updateEmployee(id, payload as UpdateEmployeeRequest),
-    deleteFn: (id) => deleteEmployee(id),
-    createTemplate: pretty({
-      dni: '12345678',
-      firstName: 'Jane',
-      lastName: 'Doe',
-      email: 'jane.doe@example.com',
-      taxStatus: 'registered',
-      status: 'active'
-    }),
-    updateTemplate: pretty({
-      status: 'inactive',
-      taxStatus: 'withholding'
-    }),
-    renderItem: (employee) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">
-            {(employee as Employee).firstName} {(employee as Employee).lastName}
-          </p>
-          <p className="text-xs text-slate-500">{(employee as Employee).email}</p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(employee as Employee).status}
-        </span>
-      </div>
-    )
-  },
-  {
-    title: 'Vehicles',
-    description: 'Fleet availability tracking.',
-    queryKey: ['vehicles'],
-    listFn: listVehicles,
-    createFn: (payload) => createVehicle(payload as CreateVehicleRequest),
-    updateFn: (id, payload) => updateVehicle(id, payload as UpdateVehicleRequest),
-    deleteFn: (id) => deleteVehicle(id),
-    createTemplate: pretty({
-      plateNumber: 'ABC123',
-      model: 'Transit',
-      year: 2024,
-      insuranceExpiresOn: '2030-01-01T00:00:00.000Z',
-      vtvExpiresOn: '2030-06-01T00:00:00.000Z',
-      status: 'available'
-    }),
-    updateTemplate: pretty({
-      status: 'maintenance',
-      assignedEmployeeId: null
-    }),
-    renderItem: (vehicle) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">
-            {(vehicle as Vehicle).plateNumber}
-          </p>
-          <p className="text-xs text-slate-500">
-            {(vehicle as Vehicle).model} · {(vehicle as Vehicle).year}
-          </p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(vehicle as Vehicle).status}
-        </span>
-      </div>
-    )
-  },
-  {
-    title: 'Travel requests',
-    description: 'Trip planning incl. approvals.',
-    queryKey: ['travel'],
-    listFn: listTravelRequests,
-    createFn: (payload) => createTravelRequest(payload as CreateTravelRequest),
-    updateFn: (id, payload) => updateTravelRequest(id, payload as UpdateTravelRequest),
-    deleteFn: (id) => deleteTravelRequest(id),
-    createTemplate: pretty({
-      employeeId: 'EMPLOYEE_ID',
-      origin: 'HQ',
-      destination: 'Client Site',
-      startDate: '2030-01-01T09:00:00.000Z',
-      endDate: '2030-01-05T18:00:00.000Z',
-      purpose: 'Implementation'
-    }),
-    updateTemplate: pretty({
-      destination: 'Client HQ',
-      status: 'approved',
-      approverComments: 'Safe travels!'
-    }),
-    renderItem: (travel) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">
-            {(travel as TravelRequest).origin} → {(travel as TravelRequest).destination}
-          </p>
-          <p className="text-xs text-slate-500">{(travel as TravelRequest).purpose}</p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(travel as TravelRequest).status}
-        </span>
-      </div>
-    )
-  },
-  {
-    title: 'Roles',
-    description: 'Permission bundles applied to employees.',
-    queryKey: ['roles'],
-    listFn: listRoles,
-    createFn: (payload) => createRole(payload as CreateRoleRequest),
-    updateFn: (id, payload) => updateRole(id, payload as UpdateRoleRequest),
-    deleteFn: (id) => deleteRole(id),
-    createTemplate: pretty({
-      name: 'travel-manager',
-      description: 'Approves trips',
-      permissions: ['travel:approve', 'travel:view']
-    }),
-    updateTemplate: pretty({
-      description: 'Approves & reviews trips',
-      permissions: ['travel:approve', 'travel:view', 'travel:comment']
-    }),
-    renderItem: (role) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">{(role as Role).name}</p>
-          <p className="text-xs text-slate-500">
-            {(role as Role).permissions.slice(0, 2).join(', ') ||
-              'No permissions assigned'}
-          </p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(role as Role).permissions.length} perms
-        </span>
-      </div>
-    )
-  },
-  {
-    title: 'Jobs',
-    description: 'Project teams with leaders + assignments.',
-    queryKey: ['jobs'],
-    listFn: listJobs,
-    createFn: (payload) => createJob(payload as CreateJobRequest),
-    updateFn: (id, payload) => updateJob(id, payload as UpdateJobRequest),
-    deleteFn: (id) => deleteJob(id),
-    createTemplate: pretty({
-      title: 'Emergency Response',
-      description: 'Rapid response crew',
-      leaderId: 'EMPLOYEE_ID',
-      memberIds: ['EMPLOYEE_ID_B']
-    }),
-    updateTemplate: pretty({
-      description: 'Rapid response & support',
-      templateId: null
-    }),
-    renderItem: (job) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">{(job as Job).title}</p>
-          <p className="text-xs text-slate-500">
-            Leader {(job as Job).leader.firstName} {(job as Job).leader.lastName}
-          </p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(job as Job).assignments.length} members
-        </span>
-      </div>
-    )
-  },
-  {
-    title: 'Job templates',
-    description: 'Reusable team blueprints.',
-    queryKey: ['job-templates'],
-    listFn: listJobTemplates,
-    createFn: (payload) => createJobTemplate(payload as CreateJobTemplateRequest),
-    updateFn: (id, payload) => updateJobTemplate(id, payload as UpdateJobTemplateRequest),
-    deleteFn: (id) => deleteJobTemplate(id),
-    createTemplate: pretty({
-      title: 'Travel Strike Team',
-      description: 'Handles escalated travel',
-      defaultRoles: ['navigator', 'coordinator']
-    }),
-    updateTemplate: pretty({
-      description: 'Handles escalations + audits',
-      defaultRoles: ['navigator', 'auditor']
-    }),
-    renderItem: (template) => (
-      <div className="flex items-center justify-between text-sm">
-        <div>
-          <p className="font-semibold text-slate-800">{(template as JobTemplate).title}</p>
-          <p className="text-xs text-slate-500">
-            {(template as JobTemplate).defaultRoles.join(', ') || 'No defaults'}
-          </p>
-        </div>
-        <span className="text-xs font-semibold uppercase text-slate-500">
-          {(template as JobTemplate).defaultRoles.length} roles
-        </span>
-      </div>
-    )
-  }
-];
+const resourceConfigs: Array<ResourcePanelProps<{ id: string }>> = resourceDefinitions.map(
+  (definition) => ({
+    title: definition.title,
+    description: definition.description,
+    queryKey: definition.queryKey,
+    listFn: definition.listFn,
+    createFn: definition.createFn,
+    updateFn: definition.updateFn,
+    deleteFn: definition.deleteFn,
+    createTemplate: pretty(definition.createTemplate),
+    updateTemplate: definition.updateTemplate ? pretty(definition.updateTemplate) : undefined,
+    renderItem: definition.preview as ResourceDefinition<{ id: string }>['preview']
+  })
+);
 
 export function ResourceConsole() {
   return (
