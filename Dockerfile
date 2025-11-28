@@ -29,7 +29,8 @@ ENV NODE_ENV=production \
     API_PORT=3333 \
     API_HOST=0.0.0.0 \
     FRONTEND_PORT=3000 \
-    NEXT_HOST=0.0.0.0
+    NEXT_HOST=0.0.0.0 \
+    DATABASE_URL=file:./prisma/prisma/dev.db
 
 COPY --from=backend-build /app/node_modules ./node_modules
 COPY --from=backend-build /app/dist ./dist
@@ -40,6 +41,10 @@ COPY --from=frontend-build /app/frontend ./frontend
 
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
+
+RUN install -d /app/bootstrap && cp /app/prisma/prisma/dev.db /app/bootstrap/dev.db
+
+VOLUME ["/app/prisma/prisma"]
 
 EXPOSE 3333 3000
 
