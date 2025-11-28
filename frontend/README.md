@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Bulk employee import
+
+Use the **Bulk import** card at the top of the dashboard to load large employee lists:
+
+1. Click **Download template** to get a CSV with the required columns (`dni`, `firstName`, `lastName`, `email`, `taxStatus`, `status`, `hiredAt`).
+2. Fill one row per employee. Supported values:
+   - `taxStatus`: `registered`, `withholding`, `exempt`, `unknown`
+   - `status`: `active`, `inactive`, `terminated`
+   - `hiredAt`: ISO date or `YYYY-MM-DD`
+3. Upload the CSV back through the same card and click **Import employees**.
+
+The API validates every row, creates the valid employees, and returns row/column level errors for anything that needs fixing. The UI surfaces those errors so you can correct the original CSV and retry immediately.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

@@ -17,6 +17,29 @@ export interface Employee {
   updatedAt: string;
 }
 
+export interface EmployeeImportError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface EmployeeImportResult {
+  totalRows: number;
+  createdCount: number;
+  failedCount: number;
+  errors: EmployeeImportError[];
+}
+
 export async function listEmployees() {
   return apiClient.get<Employee[]>('/employees');
+}
+
+export async function downloadEmployeeImportTemplate() {
+  return apiClient.download('/employees/import/template');
+}
+
+export async function importEmployeesFromCsv(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.postForm<EmployeeImportResult>('/employees/import', formData);
 }
