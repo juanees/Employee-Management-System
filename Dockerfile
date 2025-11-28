@@ -25,7 +25,7 @@ RUN npm prune --omit=dev
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
-RUN apt-get update \
+RUN apt-get update -y \
     && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
