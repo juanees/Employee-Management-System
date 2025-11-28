@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { createEmployeeSchema, updateEmployeeSchema } from './employee.schema';
 import { employeeService, InvalidEmployeeImportFileError } from './employee.service';
+import { DeleteConflictError } from '../shared/errors';
 
 const employeeRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
@@ -61,6 +62,25 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return updated;
+  });
+
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      const deleted = await employeeService.delete(id);
+      if (!deleted) {
+        return reply.code(404).send({ message: 'Employee not found' });
+      }
+
+      return reply.code(204).send();
+    } catch (error) {
+      if (error instanceof DeleteConflictError) {
+        return reply.code(409).send({ message: error.message });
+      }
+
+      throw error;
+    }
   });
 };
 

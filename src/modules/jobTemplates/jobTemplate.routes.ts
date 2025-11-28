@@ -1,6 +1,10 @@
 import { FastifyPluginAsync } from 'fastify';
 import { jobTemplateService } from './jobTemplate.service';
-import { createJobTemplateSchema, instantiateJobTemplateSchema } from './jobTemplate.schema';
+import {
+  createJobTemplateSchema,
+  instantiateJobTemplateSchema,
+  updateJobTemplateSchema
+} from './jobTemplate.schema';
 
 const jobTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
@@ -18,6 +22,14 @@ const jobTemplateRoutes: FastifyPluginAsync = async (app) => {
     return template;
   });
 
+  app.patch('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = updateJobTemplateSchema.parse(request.body ?? {});
+    const template = await jobTemplateService.updateTemplate(id, body);
+    if (!template) return reply.code(404).send({ message: 'Template not found' });
+    return template;
+  });
+
   app.post('/:id/instantiate', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = instantiateJobTemplateSchema.parse(request.body ?? {});
@@ -29,6 +41,13 @@ const jobTemplateRoutes: FastifyPluginAsync = async (app) => {
       const status = message.includes('not found') ? 404 : 400;
       reply.code(status).send({ message });
     }
+  });
+
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deleted = await jobTemplateService.deleteTemplate(id);
+    if (!deleted) return reply.code(404).send({ message: 'Template not found' });
+    return reply.code(204).send();
   });
 };
 

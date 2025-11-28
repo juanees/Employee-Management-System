@@ -60,4 +60,30 @@ describe.sequential('JobTemplateService', () => {
       'field-ops'
     );
   });
+
+  it('updates templates with new defaults', async () => {
+    const template = await templateService.createTemplate({
+      title: 'Field Ops',
+      defaultRoles: ['pilot']
+    });
+
+    const updated = await templateService.updateTemplate(template.id, {
+      description: 'Updated desc',
+      defaultRoles: ['pilot', 'support']
+    });
+
+    expect(updated?.description).toBe('Updated desc');
+    expect(updated?.defaultRoles).toEqual(['pilot', 'support']);
+  });
+
+  it('deletes templates and reports missing ones', async () => {
+    const template = await templateService.createTemplate({
+      title: 'Temp Template'
+    });
+
+    const deleted = await templateService.deleteTemplate(template.id);
+    expect(deleted).toBe(true);
+    const secondAttempt = await templateService.deleteTemplate(template.id);
+    expect(secondAttempt).toBe(false);
+  });
 });

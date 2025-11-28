@@ -2,6 +2,7 @@ import { Vehicle as VehicleModel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { Vehicle } from './vehicle.types';
 import { CreateVehicleInput, UpdateVehicleInput } from './vehicle.schema';
+import { isRecordNotFoundError } from '../shared/errors';
 
 export class VehicleService {
   constructor(private readonly client = prisma) {}
@@ -92,6 +93,19 @@ export class VehicleService {
     });
 
     return this.toDomain(record);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.client.vehicle.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   async clear() {

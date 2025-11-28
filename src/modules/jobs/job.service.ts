@@ -1,7 +1,8 @@
 import { Job as JobModel, JobAssignment as JobAssignmentModel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
-import { AddJobMembersInput, CreateJobInput } from './job.schema';
+import { AddJobMembersInput, CreateJobInput, UpdateJobInput } from './job.schema';
 import { Job, JobAssignment } from './job.types';
+import { isRecordNotFoundError } from '../shared/errors';
 
 const jobInclude = {
   leader: true,
@@ -107,6 +108,37 @@ export class JobService {
     return job ? toDomain(job) : null;
   }
 
+  async update(id: string, payload: UpdateJobInput): Promise<Job | null> {
+    if ('templateId' in payload && payload.templateId) {
+      const template = await this.client.jobTemplate.findUnique({
+        where: { id: payload.templateId }
+      });
+      if (!template) {
+        throw new Error('Template not found');
+      }
+    }
+
+    try {
+      const job = await this.client.job.update({
+        where: { id },
+        data: {
+          ...('title' in payload ? { title: payload.title } : {}),
+          ...('description' in payload ? { description: payload.description } : {}),
+          ...('templateId' in payload ? { templateId: payload.templateId ?? null } : {})
+        },
+        include: jobInclude
+      });
+
+      return toDomain(job);
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async addMembers(jobId: string, payload: AddJobMembersInput): Promise<Job> {
     const job = await this.client.job.findUnique({ where: { id: jobId } });
     if (!job) throw new Error('Job not found');
@@ -136,6 +168,18 @@ export class JobService {
     const updated = await this.client.job.findUnique({ where: { id: jobId }, include: jobInclude });
     if (!updated) throw new Error('Job not found');
     return toDomain(updated);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const job = await this.client.job.findUnique({ where: { id } });
+    if (!job) return false;
+
+    await this.client.$transaction([
+      this.client.jobAssignment.deleteMany({ where: { jobId: id } }),
+      this.client.job.delete({ where: { id } })
+    ]);
+
+    return true;
   }
 }
 

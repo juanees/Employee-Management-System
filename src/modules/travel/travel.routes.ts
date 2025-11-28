@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
-import { createTravelSchema, updateTravelStatusSchema } from './travel.schema';
+import { createTravelSchema, updateTravelSchema, updateTravelStatusSchema } from './travel.schema';
 import { travelService } from './travel.service';
 import { employeeService } from '../employees/employee.service';
 import { vehicleService } from '../fleet/vehicle.service';
@@ -43,6 +43,26 @@ const travelRoutes: FastifyPluginAsync = async (app) => {
     } catch (error) {
       return reply.code(400).send({ error: (error as Error).message, error_code: 'REQUEST_FAILED' });
     }
+  });
+
+  app.patch('/:id', async (request, reply) => {
+    const body = updateTravelSchema.parse(request.body ?? {});
+    const { id } = request.params as { id: string };
+
+    try {
+      const updated = await travelService.updateDetails(id, body);
+      if (!updated) return reply.code(404).send({ message: 'Travel request not found' });
+      return updated;
+    } catch (error) {
+      return reply.code(400).send({ error: (error as Error).message, error_code: 'REQUEST_FAILED' });
+    }
+  });
+
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deleted = await travelService.delete(id);
+    if (!deleted) return reply.code(404).send({ message: 'Travel request not found' });
+    return reply.code(204).send();
   });
 };
 

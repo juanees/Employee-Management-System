@@ -10,6 +10,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     sequence: {
       concurrent: false
-    }
+    },
+    include: ['tests/**/*.test.ts'],
+    exclude: ['tests/**/*.test.js']
   }
 });

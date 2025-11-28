@@ -29,10 +29,22 @@ async function request(path: string, init?: RequestInit): Promise<Response> {
   return response;
 }
 
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return undefined as T;
+  }
+}
+
 export const apiClient = {
   get: async <T>(path: string) => {
     const response = await request(path);
-    return response.json() as Promise<T>;
+    return parseJsonResponse<T>(response);
   },
   post: async <T>(path: string, body: unknown) => {
     const response = await request(path, {
@@ -40,14 +52,28 @@ export const apiClient = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    return response.json() as Promise<T>;
+    return parseJsonResponse<T>(response);
+  },
+  patch: async <T>(path: string, body: unknown) => {
+    const response = await request(path, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return parseJsonResponse<T>(response);
+  },
+  delete: async <T>(path: string) => {
+    const response = await request(path, {
+      method: 'DELETE'
+    });
+    return parseJsonResponse<T>(response);
   },
   postForm: async <T>(path: string, formData: FormData) => {
     const response = await request(path, {
       method: 'POST',
       body: formData
     });
-    return response.json() as Promise<T>;
+    return parseJsonResponse<T>(response);
   },
   download: async (path: string) => {
     const response = await request(path);

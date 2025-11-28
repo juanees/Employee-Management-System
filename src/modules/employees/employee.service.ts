@@ -3,6 +3,11 @@ import { parse } from 'csv-parse/sync';
 import { prisma } from '../../lib/prisma';
 import { Employee } from './employee.types';
 import { createEmployeeSchema, CreateEmployeeInput, UpdateEmployeeInput } from './employee.schema';
+import {
+  DeleteConflictError,
+  isForeignKeyConstraintError,
+  isRecordNotFoundError
+} from '../shared/errors';
 
 const unique = (items: string[]) => Array.from(new Set(items));
 const cleanValue = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
@@ -125,6 +130,23 @@ export class EmployeeService {
     });
 
     return this.toDomain(updated);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.client.employee.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return false;
+      }
+
+      if (isForeignKeyConstraintError(error)) {
+        throw new DeleteConflictError('Employee is referenced by other records');
+      }
+
+      throw error;
+    }
   }
 
   async clear() {

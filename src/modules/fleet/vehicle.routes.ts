@@ -32,6 +32,13 @@ const vehicleRoutes: FastifyPluginAsync = async (app) => {
     return updated;
   });
 
+  app.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const deleted = await vehicleService.delete(id);
+    if (!deleted) return reply.code(404).send({ message: 'Vehicle not found' });
+    return reply.code(204).send();
+  });
+
   app.post('/:id/assign', async (request, reply) => {
     const { id } = request.params as { id: string };
     const body = assignSchema.parse(request.body ?? {});

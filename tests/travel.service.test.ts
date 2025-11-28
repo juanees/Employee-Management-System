@@ -68,4 +68,43 @@ describe('TravelService', () => {
     expect(updated?.status).toBe('approved');
     expect(updated?.approverComments).toBe('Looks good');
   });
+
+  it('updates travel details and status with validation', async () => {
+    const employee = await buildEmployee();
+    const request = await travelService.create({
+      employeeId: employee.id,
+      origin: 'HQ',
+      destination: 'Client Site',
+      startDate: futureStart,
+      endDate: futureEnd,
+      purpose: 'Implementation'
+    });
+
+    const updated = await travelService.updateDetails(request.id, {
+      destination: 'Remote Office',
+      status: 'approved',
+      approverComments: 'Go ahead'
+    });
+
+    expect(updated?.destination).toBe('Remote Office');
+    expect(updated?.status).toBe('approved');
+    expect(updated?.approverComments).toBe('Go ahead');
+  });
+
+  it('deletes travel requests and reports missing ones', async () => {
+    const employee = await buildEmployee();
+    const request = await travelService.create({
+      employeeId: employee.id,
+      origin: 'HQ',
+      destination: 'Client Site',
+      startDate: futureStart,
+      endDate: futureEnd,
+      purpose: 'Implementation'
+    });
+
+    const deleted = await travelService.delete(request.id);
+    expect(deleted).toBe(true);
+    const secondAttempt = await travelService.delete(request.id);
+    expect(secondAttempt).toBe(false);
+  });
 });
