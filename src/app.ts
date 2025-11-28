@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import employeeRoutes from './modules/employees/employee.routes';
 import vehicleRoutes from './modules/fleet/vehicle.routes';
 import travelRoutes from './modules/travel/travel.routes';
@@ -9,6 +10,13 @@ import jobTemplateRoutes from './modules/jobTemplates/jobTemplate.routes';
 export function buildApp() {
   const app = Fastify({
     logger: true
+  });
+
+  const allowedOrigins =
+    process.env.CORS_ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean) ?? [];
+
+  app.register(cors, {
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true
   });
 
   app.get('/health', async () => ({ status: 'ok' }));
