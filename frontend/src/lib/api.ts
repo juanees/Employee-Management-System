@@ -1,13 +1,60 @@
 const DEFAULT_API_BASE_URL = 'http://localhost:3333';
+const DEFAULT_REQUEST_TIMEOUT_MS = 1000;
 
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? DEFAULT_API_BASE_URL;
+const parsedTimeout = Number(
+  process.env.NEXT_PUBLIC_API_TIMEOUT_MS ?? DEFAULT_REQUEST_TIMEOUT_MS
+);
+const requestTimeoutMs = Number.isFinite(parsedTimeout)
+  ? parsedTimeout
+  : DEFAULT_REQUEST_TIMEOUT_MS;
+
+function createTimeoutSignal(init?: RequestInit) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+  let originalSignalCleanup: (() => void) | undefined;
+  const originalSignal = init?.signal;
+
+  if (originalSignal) {
+    if (originalSignal.aborted) {
+      controller.abort(originalSignal.reason);
+    } else {
+      const abortHandler = () => controller.abort(originalSignal.reason);
+      originalSignal.addEventListener('abort', abortHandler, { once: true });
+      originalSignalCleanup = () => originalSignal.removeEventListener('abort', abortHandler);
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      originalSignalCleanup?.();
+    }
+  };
+}
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    cache: 'no-store',
-    ...init
-  });
+  const { signal, cleanup } = createTimeoutSignal(init);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      cache: 'no-store',
+      ...init,
+      signal
+    });
+  } catch (error) {
+    if ((error as DOMException)?.name === 'AbortError') {
+      throw new Error(`Request timed out after ${requestTimeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    cleanup();
+  }
 
   if (!response.ok) {
     let message: string | undefined;
