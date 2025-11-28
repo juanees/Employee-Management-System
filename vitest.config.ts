@@ -7,6 +7,7 @@ export default defineConfig({
     pool: 'threads',
     maxThreads: 1,
     minThreads: 1,
+    include: ['tests/**/*.test.ts'],
     sequence: {
       concurrent: false
     },

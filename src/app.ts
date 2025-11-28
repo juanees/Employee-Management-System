@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import { ZodError } from 'zod';
 import employeeRoutes from './modules/employees/employee.routes';
 import vehicleRoutes from './modules/fleet/vehicle.routes';
@@ -18,6 +19,11 @@ export function buildApp() {
 
   app.register(cors, {
     origin: allowedOrigins.length > 0 ? allowedOrigins : true
+  });
+  app.register(multipart, {
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5 MB CSVs are plenty for bulk imports
+    }
   });
 
   app.get('/health', async () => ({ status: 'ok' }));

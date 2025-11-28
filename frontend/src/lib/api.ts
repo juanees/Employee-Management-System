@@ -3,54 +3,80 @@ const DEFAULT_API_BASE_URL = 'http://localhost:3333';
 const apiBaseUrl =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '') ?? DEFAULT_API_BASE_URL;
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request(path: string, init?: RequestInit): Promise<Response> {
   const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init?.headers ?? {})
-    },
     cache: 'no-store',
     ...init
   });
 
-  const rawBody = response.status === 204 ? '' : await response.text();
-  let parsed: unknown;
-
-  if (rawBody) {
-    try {
-      parsed = JSON.parse(rawBody);
-    } catch {
-      parsed = rawBody;
-    }
-  }
-
   if (!response.ok) {
-    const message =
-      typeof (parsed as { message?: string })?.message === 'string'
-        ? (parsed as { message?: string }).message
-        : response.statusText;
-    throw new Error(
-      message ?? `Request failed with status ${response.status}`
-    );
+    let message: string | undefined;
+
+    try {
+      const payload = await response.clone().json();
+      message = payload?.message ?? payload?.error;
+    } catch {
+      try {
+        message = (await response.clone().text()) || undefined;
+      } catch {
+        message = undefined;
+      }
+    }
+
+    throw new Error(message?.trim() || `Request failed with status ${response.status}`);
   }
 
-  return parsed as T;
+  return response;
+}
+
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return undefined as T;
+  }
 }
 
 export const apiClient = {
-  get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, {
+  get: async <T>(path: string) => {
+    const response = await request(path);
+    return parseJsonResponse<T>(response);
+  },
+  post: async <T>(path: string, body: unknown) => {
+    const response = await request(path, {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }),
-  patch: <T>(path: string, body: unknown) =>
-    request<T>(path, {
+    });
+    return parseJsonResponse<T>(response);
+  },
+  patch: async <T>(path: string, body: unknown) => {
+    const response = await request(path, {
       method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
-    }),
-  delete: <T>(path: string) =>
-    request<T>(path, {
+    });
+    return parseJsonResponse<T>(response);
+  },
+  delete: async <T>(path: string) => {
+    const response = await request(path, {
       method: 'DELETE'
-    })
+    });
+    return parseJsonResponse<T>(response);
+  },
+  postForm: async <T>(path: string, formData: FormData) => {
+    const response = await request(path, {
+      method: 'POST',
+      body: formData
+    });
+    return parseJsonResponse<T>(response);
+  },
+  download: async (path: string) => {
+    const response = await request(path);
+    return response.blob();
+  }
 };

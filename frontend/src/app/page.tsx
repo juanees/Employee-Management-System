@@ -1,5 +1,6 @@
 'use client';
 
+import { EmployeeImportPanel } from '@/components/employees/employee-import-panel';
 import { EmployeeTable } from '@/components/employees/employee-table';
 import { ResourceConsole } from '@/components/resources/resource-console';
 import { useEmployees } from '@/features/employees/hooks';
@@ -50,6 +51,8 @@ export default function Home() {
             </span>
           </div>
         </header>
+
+        <EmployeeImportPanel onImportComplete={refetch} />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Total employees" value={summary.total} accent="bg-indigo-100 text-indigo-700" />

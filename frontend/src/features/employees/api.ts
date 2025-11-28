@@ -17,8 +17,17 @@ export interface Employee {
   updatedAt: string;
 }
 
-export async function listEmployees() {
-  return apiClient.get<Employee[]>('/employees');
+export interface EmployeeImportError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface EmployeeImportResult {
+  totalRows: number;
+  createdCount: number;
+  failedCount: number;
+  errors: EmployeeImportError[];
 }
 
 export interface CreateEmployeeRequest {
@@ -34,6 +43,20 @@ export interface CreateEmployeeRequest {
 export type UpdateEmployeeRequest = Partial<
   Pick<Employee, 'dni' | 'firstName' | 'lastName' | 'email' | 'taxStatus' | 'status' | 'hiredAt' | 'roles'>
 >;
+
+export async function listEmployees() {
+  return apiClient.get<Employee[]>('/employees');
+}
+
+export async function downloadEmployeeImportTemplate() {
+  return apiClient.download('/employees/import/template');
+}
+
+export async function importEmployeesFromCsv(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return apiClient.postForm<EmployeeImportResult>('/employees/import', formData);
+}
 
 export async function createEmployee(payload: CreateEmployeeRequest) {
   return apiClient.post<Employee>('/employees', payload);

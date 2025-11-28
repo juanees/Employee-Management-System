@@ -1,7 +1,8 @@
 import { Employee as EmployeeModel } from '@prisma/client';
+import { parse } from 'csv-parse/sync';
 import { prisma } from '../../lib/prisma';
 import { Employee } from './employee.types';
-import { CreateEmployeeInput, UpdateEmployeeInput } from './employee.schema';
+import { createEmployeeSchema, CreateEmployeeInput, UpdateEmployeeInput } from './employee.schema';
 import {
   DeleteConflictError,
   isForeignKeyConstraintError,
@@ -9,6 +10,45 @@ import {
 } from '../shared/errors';
 
 const unique = (items: string[]) => Array.from(new Set(items));
+const cleanValue = (value: unknown) => (typeof value === 'string' ? value.trim() : '');
+
+export const EMPLOYEE_IMPORT_HEADERS = [
+  'dni',
+  'firstName',
+  'lastName',
+  'email',
+  'taxStatus',
+  'status',
+  'hiredAt'
+] as const;
+
+const EMPLOYEE_IMPORT_TEMPLATE = [
+  EMPLOYEE_IMPORT_HEADERS.join(','),
+  '20456789,Sofia,Perez,sofia.perez@example.com,registered,active,2024-03-01'
+].join('\n');
+
+export interface EmployeeImportError {
+  rowNumber: number;
+  field: string;
+  message: string;
+}
+
+export interface EmployeeImportResult {
+  totalRows: number;
+  createdCount: number;
+  failedCount: number;
+  errors: EmployeeImportError[];
+}
+
+export class InvalidEmployeeImportFileError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidEmployeeImportFileError';
+  }
+}
+
+type ReportErrorFn = (rowNumber: number, field: string, message: string) => void;
+type CsvRow = Record<string, string>;
 
 export class EmployeeService {
   constructor(private readonly client = prisma) {}
@@ -111,6 +151,196 @@ export class EmployeeService {
 
   async clear() {
     await this.client.employee.deleteMany();
+  }
+
+  getImportTemplate(): string {
+    return `${EMPLOYEE_IMPORT_TEMPLATE}\n`;
+  }
+
+  async importFromCsv(fileBuffer: Buffer): Promise<EmployeeImportResult> {
+    const csvContent = fileBuffer.toString('utf-8').trim();
+    if (!csvContent) {
+      throw new InvalidEmployeeImportFileError('CSV file is empty. Download the template and add at least one employee row.');
+    }
+
+    const [rawHeaderLine] = csvContent.split(/\r?\n/);
+    if (!rawHeaderLine) {
+      throw new InvalidEmployeeImportFileError('CSV file is missing the header row.');
+    }
+
+    const headerColumns = rawHeaderLine
+      .split(',')
+      .map((column) => column.trim().replace(/^"|"$/g, ''));
+    const missingColumns = EMPLOYEE_IMPORT_HEADERS.filter((column) => !headerColumns.includes(column));
+    if (missingColumns.length > 0) {
+      throw new InvalidEmployeeImportFileError(
+        `CSV is missing required columns: ${missingColumns.join(', ')}. Download a fresh template to continue.`
+      );
+    }
+
+    let rows: CsvRow[];
+    try {
+      rows = parse(csvContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true
+      }) as CsvRow[];
+    } catch (error) {
+      throw new InvalidEmployeeImportFileError('Unable to parse CSV file. Ensure it is a valid comma-separated file.');
+    }
+
+    if (rows.length === 0) {
+      throw new InvalidEmployeeImportFileError('CSV file does not contain any employee rows.');
+    }
+
+    const errors: EmployeeImportError[] = [];
+    const failedRows = new Set<number>();
+    const validRows: { rowNumber: number; payload: CreateEmployeeInput }[] = [];
+
+    const reportError: ReportErrorFn = (rowNumber, field, message) => {
+      errors.push({ rowNumber, field, message });
+      failedRows.add(rowNumber);
+    };
+
+    rows.forEach((rawRow, index) => {
+      const rowNumber = index + 2; // account for header row
+      const normalized = this.normalizeCsvRow(rawRow, rowNumber, reportError);
+      const validation = createEmployeeSchema.safeParse(normalized);
+      if (!validation.success) {
+        validation.error.issues.forEach((issue) => {
+          const field = typeof issue.path[0] === 'string' ? issue.path[0] : 'row';
+          reportError(rowNumber, field, issue.message);
+        });
+        return;
+      }
+
+      validRows.push({ rowNumber, payload: validation.data });
+    });
+
+    this.ensureNoDuplicates(validRows, 'dni', reportError);
+    this.ensureNoDuplicates(validRows, 'email', reportError);
+
+    const candidateRows = validRows.filter((row) => !failedRows.has(row.rowNumber));
+    if (candidateRows.length > 0) {
+      const existingConflicts = await this.findExistingConflicts(candidateRows);
+      candidateRows.forEach((row) => {
+        if (existingConflicts.dni.has(row.payload.dni)) {
+          reportError(row.rowNumber, 'dni', `DNI ${row.payload.dni} already exists.`);
+        }
+        if (existingConflicts.email.has(row.payload.email)) {
+          reportError(row.rowNumber, 'email', `Email ${row.payload.email} already exists.`);
+        }
+      });
+    }
+
+    const insertableRows = validRows.filter((row) => !failedRows.has(row.rowNumber));
+    let insertedCount = 0;
+    if (insertableRows.length > 0) {
+      const { count } = await this.client.employee.createMany({
+        data: insertableRows.map((row) => ({
+          dni: row.payload.dni,
+          firstName: row.payload.firstName,
+          lastName: row.payload.lastName,
+          email: row.payload.email,
+          taxStatus: row.payload.taxStatus ?? 'unknown',
+          status: row.payload.status ?? 'active',
+          roles: JSON.stringify([]),
+          hiredAt: row.payload.hiredAt ? new Date(row.payload.hiredAt) : new Date()
+        }))
+      });
+      insertedCount = count;
+    }
+
+    const totalRows = rows.length;
+
+    return {
+      totalRows,
+      createdCount: insertedCount,
+      failedCount: totalRows - insertedCount,
+      errors: errors.sort((a, b) =>
+        a.rowNumber === b.rowNumber ? a.field.localeCompare(b.field) : a.rowNumber - b.rowNumber
+      )
+    };
+  }
+
+  private normalizeCsvRow(rawRow: CsvRow, rowNumber: number, reportError: ReportErrorFn): Partial<CreateEmployeeInput> {
+    const normalized: Partial<CreateEmployeeInput> = {
+      dni: cleanValue(rawRow.dni),
+      firstName: cleanValue(rawRow.firstName),
+      lastName: cleanValue(rawRow.lastName),
+      email: cleanValue(rawRow.email)
+    };
+
+    const taxStatus = cleanValue(rawRow.taxStatus);
+    if (taxStatus) {
+      normalized.taxStatus = taxStatus.toLowerCase() as CreateEmployeeInput['taxStatus'];
+    }
+
+    const status = cleanValue(rawRow.status);
+    if (status) {
+      normalized.status = status.toLowerCase() as CreateEmployeeInput['status'];
+    }
+
+    const hiredAt = cleanValue(rawRow.hiredAt);
+    if (hiredAt) {
+      const parsedDate = new Date(hiredAt);
+      if (Number.isNaN(parsedDate.getTime())) {
+        reportError(rowNumber, 'hiredAt', 'Invalid date. Use YYYY-MM-DD or a valid ISO date string.');
+      } else {
+        normalized.hiredAt = parsedDate.toISOString();
+      }
+    }
+
+    return normalized;
+  }
+
+  private ensureNoDuplicates(
+    rows: { rowNumber: number; payload: CreateEmployeeInput }[],
+    key: 'dni' | 'email',
+    reportError: ReportErrorFn
+  ) {
+    const occurrences = new Map<string, number[]>();
+    rows.forEach((row) => {
+      const value = row.payload[key];
+      const current = occurrences.get(value) ?? [];
+      current.push(row.rowNumber);
+      occurrences.set(value, current);
+    });
+
+    occurrences.forEach((rowNumbers, value) => {
+      if (rowNumbers.length <= 1) return;
+      const [, ...duplicates] = [...rowNumbers].sort((a, b) => a - b);
+      duplicates.forEach((rowNumber) => {
+        reportError(rowNumber, key, `${key.toUpperCase()} "${value}" is duplicated in the file.`);
+      });
+    });
+  }
+
+  private async findExistingConflicts(rows: { rowNumber: number; payload: CreateEmployeeInput }[]) {
+    const dnis = unique(rows.map((row) => row.payload.dni));
+    const emails = unique(rows.map((row) => row.payload.email));
+
+    if (dnis.length === 0 && emails.length === 0) {
+      return {
+        dni: new Set<string>(),
+        email: new Set<string>()
+      };
+    }
+
+    const existing = await this.client.employee.findMany({
+      where: {
+        OR: [
+          ...(dnis.length > 0 ? [{ dni: { in: dnis } }] : []),
+          ...(emails.length > 0 ? [{ email: { in: emails } }] : [])
+        ]
+      },
+      select: { dni: true, email: true }
+    });
+
+    return {
+      dni: new Set(existing.map((employee) => employee.dni)),
+      email: new Set(existing.map((employee) => employee.email))
+    };
   }
 }
 
