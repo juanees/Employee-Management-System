@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+frontend/node_modules
+
+# Build outputs
+dist
+frontend/.next
+frontend/.turbo
+
+# Logs and coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+coverage
+
+# Environment files
+.env
+.env.*
+
+# Editor artifacts
+.vscode
+.idea
+.DS_Store
