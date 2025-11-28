@@ -3,7 +3,7 @@ import { prisma } from '../../lib/prisma';
 import { Vehicle } from './vehicle.types';
 import { CreateVehicleInput, UpdateVehicleInput } from './vehicle.schema';
 
-class VehicleService {
+export class VehicleService {
   constructor(private readonly client = prisma) {}
 
   private toDomain(record: VehicleModel): Vehicle {
@@ -77,6 +77,11 @@ class VehicleService {
   async assignEmployee(vehicleId: string, employeeId: string | null): Promise<Vehicle | null> {
     const vehicle = await this.client.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) return null;
+
+    const statusIsAssignable = vehicle.status === 'available' || vehicle.status === 'assigned';
+    if (!statusIsAssignable) {
+      throw new Error('Vehicle cannot be reassigned while out of service');
+    }
 
     const record = await this.client.vehicle.update({
       where: { id: vehicleId },
