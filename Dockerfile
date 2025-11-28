@@ -34,7 +34,7 @@ ENV NODE_ENV=production \
     API_HOST=0.0.0.0 \
     FRONTEND_PORT=3000 \
     NEXT_HOST=0.0.0.0 \
-    DATABASE_URL=file:./prisma/prisma/dev.db
+    DATABASE_URL=file:./prisma/dev.db
 
 COPY --from=backend-build /app/node_modules ./node_modules
 COPY --from=backend-build /app/dist ./dist
