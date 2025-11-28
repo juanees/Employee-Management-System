@@ -1,66 +1,94 @@
-import { randomUUID } from 'node:crypto';
+import { Employee as EmployeeModel } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 import { Employee } from './employee.types';
 import { CreateEmployeeInput, UpdateEmployeeInput } from './employee.schema';
 
+const unique = (items: string[]) => Array.from(new Set(items));
+
 export class EmployeeService {
-  private employees = new Map<string, Employee>();
+  constructor(private readonly client = prisma) {}
 
-  create(payload: CreateEmployeeInput): Employee {
-    const now = new Date().toISOString();
-    const employee: Employee = {
-      id: randomUUID(),
-      dni: payload.dni,
-      firstName: payload.firstName,
-      lastName: payload.lastName,
-      email: payload.email,
-      taxStatus: payload.taxStatus ?? 'unknown',
-      status: payload.status ?? 'active',
-      roles: [],
-      hiredAt: payload.hiredAt ?? now,
-      createdAt: now,
-      updatedAt: now
+  private toDomain(record: EmployeeModel): Employee {
+    return {
+      id: record.id,
+      dni: record.dni,
+      firstName: record.firstName,
+      lastName: record.lastName,
+      email: record.email,
+      taxStatus: (record.taxStatus as Employee['taxStatus']) ?? 'unknown',
+      status: (record.status as Employee['status']) ?? 'active',
+      roles: JSON.parse(record.roles) as string[],
+      hiredAt: record.hiredAt.toISOString(),
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString()
     };
-
-    this.employees.set(employee.id, employee);
-    return employee;
   }
 
-  list(): Employee[] {
-    return Array.from(this.employees.values());
+  async create(payload: CreateEmployeeInput): Promise<Employee> {
+    const record = await this.client.employee.create({
+      data: {
+        dni: payload.dni,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        taxStatus: payload.taxStatus ?? 'unknown',
+        status: payload.status ?? 'active',
+        roles: JSON.stringify([]),
+        hiredAt: payload.hiredAt ? new Date(payload.hiredAt) : new Date()
+      }
+    });
+
+    return this.toDomain(record);
   }
 
-  findById(id: string): Employee | null {
-    return this.employees.get(id) ?? null;
+  async list(): Promise<Employee[]> {
+    const employees = await this.client.employee.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    return employees.map((employee) => this.toDomain(employee));
   }
 
-  update(id: string, payload: UpdateEmployeeInput): Employee | null {
-    const existing = this.employees.get(id);
-    if (!existing) return null;
-
-    const updated: Employee = {
-      ...existing,
-      ...payload,
-      roles: payload.roles ? Array.from(new Set(payload.roles)) : existing.roles,
-      updatedAt: new Date().toISOString()
-    };
-
-    this.employees.set(id, updated);
-    return updated;
+  async findById(id: string): Promise<Employee | null> {
+    const employee = await this.client.employee.findUnique({ where: { id } });
+    return employee ? this.toDomain(employee) : null;
   }
 
-  assignRole(employeeId: string, roleId: string): Employee | null {
-    const existing = this.employees.get(employeeId);
-    if (!existing) return null;
+  async update(id: string, payload: UpdateEmployeeInput): Promise<Employee | null> {
+    const employee = await this.client.employee.findUnique({ where: { id } });
+    if (!employee) return null;
 
-    if (!existing.roles.includes(roleId)) {
-      existing.roles.push(roleId);
-      existing.updatedAt = new Date().toISOString();
-    }
+    const updated = await this.client.employee.update({
+      where: { id },
+      data: {
+        ...('dni' in payload ? { dni: payload.dni } : {}),
+        ...('firstName' in payload ? { firstName: payload.firstName } : {}),
+        ...('lastName' in payload ? { lastName: payload.lastName } : {}),
+        ...('email' in payload ? { email: payload.email } : {}),
+        ...('taxStatus' in payload ? { taxStatus: payload.taxStatus } : {}),
+        ...('status' in payload ? { status: payload.status } : {}),
+        ...('hiredAt' in payload && payload.hiredAt ? { hiredAt: new Date(payload.hiredAt) } : {}),
+        ...(payload.roles ? { roles: JSON.stringify(unique(payload.roles)) } : {})
+      }
+    });
 
-    return existing;
+    return this.toDomain(updated);
   }
-  clear() {
-    this.employees.clear();
+
+  async assignRole(employeeId: string, roleId: string): Promise<Employee | null> {
+    const employee = await this.client.employee.findUnique({ where: { id: employeeId } });
+    if (!employee) return null;
+
+    const roles = unique([...((JSON.parse(employee.roles) as string[]) ?? []), roleId]);
+    const updated = await this.client.employee.update({
+      where: { id: employeeId },
+      data: { roles: JSON.stringify(roles) }
+    });
+
+    return this.toDomain(updated);
+  }
+
+  async clear() {
+    await this.client.employee.deleteMany();
   }
 }
 

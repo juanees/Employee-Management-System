@@ -1,42 +1,66 @@
+import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { TravelService } from '../src/modules/travel/travel.service';
+import { EmployeeService } from '../src/modules/employees/employee.service';
 
-const startDate = new Date('2030-01-01T09:00:00.000Z').toISOString();
-const endDate = new Date('2030-01-05T09:00:00.000Z').toISOString();
+const travelService = new TravelService();
+const employeeService = new EmployeeService();
 
-const payload = {
-  employeeId: '11111111-1111-1111-1111-111111111111',
-  origin: 'HQ',
-  destination: 'Client Site',
-  startDate,
-  endDate,
-  purpose: 'Implementation'
-};
+const buildEmployee = async () =>
+  employeeService.create({
+    dni: `${Math.floor(Math.random() * 1_000_000_000)}`,
+    firstName: 'Traveler',
+    lastName: 'Example',
+    email: `traveler+${randomUUID()}@example.com`,
+    taxStatus: 'registered',
+    status: 'active',
+    hiredAt: new Date().toISOString()
+  });
+
+const futureStart = new Date('2030-01-01T09:00:00.000Z').toISOString();
+const futureEnd = new Date('2030-01-05T09:00:00.000Z').toISOString();
 
 describe('TravelService', () => {
-  it('creates travel requests in pending state', () => {
-    const service = new TravelService();
-    const request = service.create(payload);
+  it('creates travel requests in pending state', async () => {
+    const employee = await buildEmployee();
+    const request = await travelService.create({
+      employeeId: employee.id,
+      origin: 'HQ',
+      destination: 'Client Site',
+      startDate: futureStart,
+      endDate: futureEnd,
+      purpose: 'Implementation'
+    });
 
     expect(request.status).toBe('pending_approval');
     expect(request.id).toBeDefined();
   });
 
-  it('throws when end date is before start', () => {
-    const service = new TravelService();
-    expect(() =>
-      service.create({
-        ...payload,
-        startDate,
-        endDate: new Date('2029-01-01T00:00:00.000Z').toISOString()
+  it('throws when end date is before start', async () => {
+    const employee = await buildEmployee();
+    await expect(
+      travelService.create({
+        employeeId: employee.id,
+        origin: 'HQ',
+        destination: 'Client',
+        startDate: futureStart,
+        endDate: new Date('2029-01-01T00:00:00.000Z').toISOString(),
+        purpose: 'Audit'
       })
-    ).toThrow('End date must be after start date');
+    ).rejects.toThrow('End date must be after start date');
   });
 
-  it('updates travel status', () => {
-    const service = new TravelService();
-    const request = service.create(payload);
-    const updated = service.updateStatus(request.id, {
+  it('updates travel status', async () => {
+    const employee = await buildEmployee();
+    const request = await travelService.create({
+      employeeId: employee.id,
+      origin: 'HQ',
+      destination: 'Client Site',
+      startDate: futureStart,
+      endDate: futureEnd,
+      purpose: 'Implementation'
+    });
+    const updated = await travelService.updateStatus(request.id, {
       status: 'approved',
       approverComments: 'Looks good'
     });

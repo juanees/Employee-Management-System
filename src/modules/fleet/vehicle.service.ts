@@ -1,58 +1,96 @@
-import { randomUUID } from 'node:crypto';
+import { Vehicle as VehicleModel } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 import { Vehicle } from './vehicle.types';
 import { CreateVehicleInput, UpdateVehicleInput } from './vehicle.schema';
 
 class VehicleService {
-  private vehicles = new Map<string, Vehicle>();
+  constructor(private readonly client = prisma) {}
 
-  create(payload: CreateVehicleInput): Vehicle {
-    const now = new Date().toISOString();
-    const vehicle: Vehicle = {
-      id: randomUUID(),
-      plateNumber: payload.plateNumber,
-      model: payload.model,
-      year: payload.year,
-      insuranceExpiresOn: payload.insuranceExpiresOn,
-      vtvExpiresOn: payload.vtvExpiresOn,
-      status: payload.status ?? 'available',
-      createdAt: now,
-      updatedAt: now
+  private toDomain(record: VehicleModel): Vehicle {
+    return {
+      id: record.id,
+      plateNumber: record.plateNumber,
+      model: record.model,
+      year: record.year,
+      insuranceExpiresOn: record.insuranceExpiresOn.toISOString(),
+      vtvExpiresOn: record.vtvExpiresOn.toISOString(),
+      status: record.status as Vehicle['status'],
+      assignedEmployeeId: record.assignedEmployeeId ?? undefined,
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString()
     };
-
-    this.vehicles.set(vehicle.id, vehicle);
-    return vehicle;
   }
 
-  list(): Vehicle[] {
-    return Array.from(this.vehicles.values());
+  async create(payload: CreateVehicleInput): Promise<Vehicle> {
+    const record = await this.client.vehicle.create({
+      data: {
+        plateNumber: payload.plateNumber,
+        model: payload.model,
+        year: payload.year,
+        insuranceExpiresOn: new Date(payload.insuranceExpiresOn),
+        vtvExpiresOn: new Date(payload.vtvExpiresOn),
+        status: payload.status ?? 'available'
+      }
+    });
+
+    return this.toDomain(record);
   }
 
-  findById(id: string): Vehicle | null {
-    return this.vehicles.get(id) ?? null;
+  async list(): Promise<Vehicle[]> {
+    const vehicles = await this.client.vehicle.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    return vehicles.map((vehicle) => this.toDomain(vehicle));
   }
 
-  update(id: string, payload: UpdateVehicleInput): Vehicle | null {
-    const existing = this.vehicles.get(id);
-    if (!existing) return null;
-
-    const updated: Vehicle = {
-      ...existing,
-      ...payload,
-      updatedAt: new Date().toISOString()
-    };
-
-    this.vehicles.set(id, updated);
-    return updated;
+  async findById(id: string): Promise<Vehicle | null> {
+    const vehicle = await this.client.vehicle.findUnique({ where: { id } });
+    return vehicle ? this.toDomain(vehicle) : null;
   }
 
-  assignEmployee(vehicleId: string, employeeId: string | null): Vehicle | null {
-    const existing = this.vehicles.get(vehicleId);
-    if (!existing) return null;
+  async update(id: string, payload: UpdateVehicleInput): Promise<Vehicle | null> {
+    const vehicle = await this.client.vehicle.findUnique({ where: { id } });
+    if (!vehicle) return null;
 
-    existing.assignedEmployeeId = employeeId ?? undefined;
-    existing.status = employeeId ? 'assigned' : 'available';
-    existing.updatedAt = new Date().toISOString();
-    return existing;
+    const record = await this.client.vehicle.update({
+      where: { id },
+      data: {
+        ...('plateNumber' in payload ? { plateNumber: payload.plateNumber } : {}),
+        ...('model' in payload ? { model: payload.model } : {}),
+        ...('year' in payload ? { year: payload.year } : {}),
+        ...('insuranceExpiresOn' in payload && payload.insuranceExpiresOn
+          ? { insuranceExpiresOn: new Date(payload.insuranceExpiresOn) }
+          : {}),
+        ...('vtvExpiresOn' in payload && payload.vtvExpiresOn
+          ? { vtvExpiresOn: new Date(payload.vtvExpiresOn) }
+          : {}),
+        ...('status' in payload ? { status: payload.status } : {}),
+        ...('assignedEmployeeId' in payload
+          ? { assignedEmployeeId: payload.assignedEmployeeId ?? null }
+          : {})
+      }
+    });
+
+    return this.toDomain(record);
+  }
+
+  async assignEmployee(vehicleId: string, employeeId: string | null): Promise<Vehicle | null> {
+    const vehicle = await this.client.vehicle.findUnique({ where: { id: vehicleId } });
+    if (!vehicle) return null;
+
+    const record = await this.client.vehicle.update({
+      where: { id: vehicleId },
+      data: {
+        assignedEmployeeId: employeeId,
+        status: employeeId ? 'assigned' : 'available'
+      }
+    });
+
+    return this.toDomain(record);
+  }
+
+  async clear() {
+    await this.client.vehicle.deleteMany();
   }
 }
 

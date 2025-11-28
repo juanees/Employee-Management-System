@@ -10,15 +10,15 @@ const travelRoutes: FastifyPluginAsync = async (app) => {
     try {
       const body = createTravelSchema.parse(request.body);
 
-      const employee = employeeService.findById(body.employeeId);
+      const employee = await employeeService.findById(body.employeeId);
       if (!employee) return reply.code(404).send({ message: 'Employee not found' });
 
       if (body.vehicleId) {
-        const vehicle = vehicleService.findById(body.vehicleId);
+        const vehicle = await vehicleService.findById(body.vehicleId);
         if (!vehicle) return reply.code(404).send({ message: 'Vehicle not found' });
       }
 
-      const travelRequest = travelService.create(body);
+      const travelRequest = await travelService.create(body);
       reply.code(201).send(travelRequest);
     } catch (error) {
       if (error instanceof ZodError) {
@@ -33,7 +33,7 @@ const travelRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const travelRequest = travelService.findById(id);
+    const travelRequest = await travelService.findById(id);
     if (!travelRequest) return reply.code(404).send({ message: 'Travel request not found' });
     return travelRequest;
   });
@@ -42,7 +42,7 @@ const travelRoutes: FastifyPluginAsync = async (app) => {
     try {
       const body = updateTravelStatusSchema.parse(request.body ?? {});
       const { id } = request.params as { id: string };
-      const updated = travelService.updateStatus(id, body);
+      const updated = await travelService.updateStatus(id, body);
       if (!updated) return reply.code(404).send({ message: 'Travel request not found' });
       return updated;
     } catch (error) {

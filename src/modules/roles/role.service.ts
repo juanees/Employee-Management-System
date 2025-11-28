@@ -1,46 +1,62 @@
-import { randomUUID } from 'node:crypto';
+import { Role as RoleModel } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 import { Role } from './role.types';
 import { CreateRoleInput, UpdateRoleInput } from './role.schema';
 
 class RoleService {
-  private roles = new Map<string, Role>();
+  constructor(private readonly client = prisma) {}
 
-  create(payload: CreateRoleInput): Role {
-    const now = new Date().toISOString();
-    const role: Role = {
-      id: randomUUID(),
-      name: payload.name,
-      description: payload.description,
-      permissions: payload.permissions ?? [],
-      createdAt: now,
-      updatedAt: now
+  private toDomain(record: RoleModel): Role {
+    return {
+      id: record.id,
+      name: record.name,
+      description: record.description ?? undefined,
+      permissions: JSON.parse(record.permissions) as string[],
+      createdAt: record.createdAt.toISOString(),
+      updatedAt: record.updatedAt.toISOString()
     };
-
-    this.roles.set(role.id, role);
-    return role;
   }
 
-  list(): Role[] {
-    return Array.from(this.roles.values());
+  async create(payload: CreateRoleInput): Promise<Role> {
+    const record = await this.client.role.create({
+      data: {
+        name: payload.name,
+        description: payload.description,
+        permissions: JSON.stringify(payload.permissions ?? [])
+      }
+    });
+
+    return this.toDomain(record);
   }
 
-  findById(id: string): Role | null {
-    return this.roles.get(id) ?? null;
+  async list(): Promise<Role[]> {
+    const roles = await this.client.role.findMany({ orderBy: { createdAt: 'desc' } });
+    return roles.map((role) => this.toDomain(role));
   }
 
-  update(id: string, payload: UpdateRoleInput): Role | null {
-    const existing = this.roles.get(id);
-    if (!existing) return null;
+  async findById(id: string): Promise<Role | null> {
+    const role = await this.client.role.findUnique({ where: { id } });
+    return role ? this.toDomain(role) : null;
+  }
 
-    const updated: Role = {
-      ...existing,
-      ...payload,
-      permissions: payload.permissions ?? existing.permissions,
-      updatedAt: new Date().toISOString()
-    };
+  async update(id: string, payload: UpdateRoleInput): Promise<Role | null> {
+    const role = await this.client.role.findUnique({ where: { id } });
+    if (!role) return null;
 
-    this.roles.set(id, updated);
-    return updated;
+    const record = await this.client.role.update({
+      where: { id },
+      data: {
+        ...('name' in payload ? { name: payload.name } : {}),
+        ...('description' in payload ? { description: payload.description } : {}),
+        ...(payload.permissions ? { permissions: JSON.stringify(payload.permissions) } : {})
+      }
+    });
+
+    return this.toDomain(record);
+  }
+
+  async clear() {
+    await this.client.role.deleteMany();
   }
 }
 

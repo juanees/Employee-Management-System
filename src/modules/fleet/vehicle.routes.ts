@@ -11,7 +11,7 @@ const assignSchema = z.object({
 const vehicleRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
     const body = createVehicleSchema.parse(request.body);
-    const vehicle = vehicleService.create(body);
+    const vehicle = await vehicleService.create(body);
     reply.code(201).send(vehicle);
   });
 
@@ -19,7 +19,7 @@ const vehicleRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const vehicle = vehicleService.findById(id);
+    const vehicle = await vehicleService.findById(id);
     if (!vehicle) return reply.code(404).send({ message: 'Vehicle not found' });
     return vehicle;
   });
@@ -27,7 +27,7 @@ const vehicleRoutes: FastifyPluginAsync = async (app) => {
   app.patch('/:id', async (request, reply) => {
     const body = updateVehicleSchema.parse(request.body ?? {});
     const { id } = request.params as { id: string };
-    const updated = vehicleService.update(id, body);
+    const updated = await vehicleService.update(id, body);
     if (!updated) return reply.code(404).send({ message: 'Vehicle not found' });
     return updated;
   });
@@ -37,13 +37,13 @@ const vehicleRoutes: FastifyPluginAsync = async (app) => {
     const body = assignSchema.parse(request.body ?? {});
 
     if (body.employeeId) {
-      const employee = employeeService.findById(body.employeeId);
+      const employee = await employeeService.findById(body.employeeId);
       if (!employee) {
         return reply.code(404).send({ message: 'Employee not found' });
       }
     }
 
-    const updated = vehicleService.assignEmployee(id, body.employeeId ?? null);
+    const updated = await vehicleService.assignEmployee(id, body.employeeId ?? null);
     if (!updated) return reply.code(404).send({ message: 'Vehicle not found' });
     return updated;
   });
