@@ -8,19 +8,21 @@ datasource db {
 }
 
 model Employee {
-  id         String   @id @default(uuid())
-  dni        String   @unique
-  firstName  String
-  lastName   String
-  email      String   @unique
-  taxStatus  String   @default("unknown")
-  status     String   @default("active")
-  roles      String   @default("[]")
-  hiredAt    DateTime @default(now())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  vehicles   Vehicle[]
-  travel     TravelRequest[]
+  id             String          @id @default(uuid())
+  dni            String          @unique
+  firstName      String
+  lastName       String
+  email          String          @unique
+  taxStatus      String          @default("unknown")
+  status         String          @default("active")
+  roles          String          @default("[]")
+  hiredAt        DateTime        @default(now())
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  vehicles       Vehicle[]
+  travel         TravelRequest[]
+  ledJobs        Job[]           @relation("JobLeader")
+  jobAssignments JobAssignment[]
 }
 
 model Vehicle {
@@ -62,4 +64,28 @@ model Role {
   permissions String   @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Job {
+  id          String          @id @default(uuid())
+  title       String
+  description String?
+  leaderId    String
+  leader      Employee        @relation("JobLeader", fields: [leaderId], references: [id])
+  assignments JobAssignment[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model JobAssignment {
+  id          String   @id @default(uuid())
+  jobId       String
+  employeeId  String
+  role        String   @default("member")
+  job         Job      @relation(fields: [jobId], references: [id])
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([jobId, employeeId])
 }
