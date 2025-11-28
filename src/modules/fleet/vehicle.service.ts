@@ -78,11 +78,17 @@ class VehicleService {
     const vehicle = await this.client.vehicle.findUnique({ where: { id: vehicleId } });
     if (!vehicle) return null;
 
+    const statusIsAssignable = vehicle.status === 'available' || vehicle.status === 'assigned';
+
     const record = await this.client.vehicle.update({
       where: { id: vehicleId },
       data: {
         assignedEmployeeId: employeeId,
-        status: employeeId ? 'assigned' : 'available'
+        ...(statusIsAssignable
+          ? {
+              status: employeeId ? 'assigned' : 'available'
+            }
+          : {})
       }
     });
 
