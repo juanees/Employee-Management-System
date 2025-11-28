@@ -5,6 +5,7 @@ import { prisma } from '../src/lib/prisma';
 beforeEach(async () => {
   await prisma.jobAssignment.deleteMany();
   await prisma.job.deleteMany();
+  await prisma.jobTemplate.deleteMany();
   await prisma.travelRequest.deleteMany();
   await prisma.vehicle.deleteMany();
   await prisma.role.deleteMany();

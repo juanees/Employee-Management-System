@@ -49,6 +49,18 @@ async function main() {
     });
   }
 
+  const templateTitle = 'Global Mobility Template';
+  const template = await prisma.jobTemplate.findFirst({ where: { title: templateTitle } });
+  if (!template) {
+    await prisma.jobTemplate.create({
+      data: {
+        title: templateTitle,
+        description: 'Reusable blueprint for mobility and travel coordination teams.',
+        defaultRoles: JSON.stringify(['planner', 'liaison'])
+      }
+    });
+  }
+
   console.log('Seed completed successfully');
 }
 

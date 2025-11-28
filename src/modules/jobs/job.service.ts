@@ -5,6 +5,12 @@ import { Job, JobAssignment } from './job.types';
 
 const jobInclude = {
   leader: true,
+  template: {
+    select: {
+      id: true,
+      title: true
+    }
+  },
   assignments: {
     include: {
       employee: true
@@ -12,8 +18,8 @@ const jobInclude = {
   }
 };
 
-const roleFromRecord = (role: string): JobAssignment['role'] =>
-  role === 'leader' ? 'leader' : 'member';
+const roleFromRecord = (role: string | null): JobAssignment['role'] =>
+  role === 'leader' ? 'leader' : role ?? 'member';
 
 const toAssignment = (record: JobAssignmentModel & { employee: { id: string; firstName: string; lastName: string; email: string } }): JobAssignment => ({
   id: record.id,
@@ -34,6 +40,7 @@ const toAssignment = (record: JobAssignmentModel & { employee: { id: string; fir
 
 const toDomain = (job: JobModel & {
   leader: { id: string; firstName: string; lastName: string; email: string };
+  template: { id: string; title: string } | null;
   assignments: Array<JobAssignmentModel & { employee: { id: string; firstName: string; lastName: string; email: string } }>;
 }): Job => ({
   id: job.id,
@@ -46,6 +53,7 @@ const toDomain = (job: JobModel & {
     lastName: job.leader.lastName,
     email: job.leader.email
   },
+  template: job.template ?? undefined,
   assignments: job.assignments.map(toAssignment),
   createdAt: job.createdAt.toISOString(),
   updatedAt: job.updatedAt.toISOString()

@@ -66,12 +66,24 @@ model Role {
   updatedAt   DateTime @updatedAt
 }
 
+model JobTemplate {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  defaultRoles  String   @default("[]")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  jobs          Job[]
+}
+
 model Job {
   id          String          @id @default(uuid())
   title       String
   description String?
   leaderId    String
+  templateId  String?
   leader      Employee        @relation("JobLeader", fields: [leaderId], references: [id])
+  template    JobTemplate?    @relation(fields: [templateId], references: [id])
   assignments JobAssignment[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt

@@ -1,4 +1,4 @@
-export type JobMemberRole = 'leader' | 'member';
+export type JobMemberRole = 'leader' | string;
 
 export interface JobAssignment {
   id: string;
@@ -25,6 +25,10 @@ export interface Job {
     firstName: string;
     lastName: string;
     email: string;
+  };
+  template?: {
+    id: string;
+    title: string;
   };
   assignments: JobAssignment[];
   createdAt: string;
