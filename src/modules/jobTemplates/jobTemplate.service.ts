@@ -3,10 +3,12 @@ import { prisma } from '../../lib/prisma';
 import { JobTemplate } from './jobTemplate.types';
 import {
   CreateJobTemplateInput,
-  InstantiateJobTemplateInput
+  InstantiateJobTemplateInput,
+  UpdateJobTemplateInput
 } from './jobTemplate.schema';
 import { jobService } from '../jobs/job.service';
 import { Job } from '../jobs/job.types';
+import { isRecordNotFoundError } from '../shared/errors';
 
 const parseRoles = (roles: string) => {
   try {
@@ -62,6 +64,29 @@ export class JobTemplateService {
     return template ? toTemplate(template) : null;
   }
 
+  async updateTemplate(id: string, payload: UpdateJobTemplateInput): Promise<JobTemplate | null> {
+    try {
+      const template = await this.client.jobTemplate.update({
+        where: { id },
+        data: {
+          ...('title' in payload ? { title: payload.title } : {}),
+          ...('description' in payload ? { description: payload.description } : {}),
+          ...('defaultRoles' in payload
+            ? { defaultRoles: JSON.stringify(payload.defaultRoles ?? []) }
+            : {})
+        }
+      });
+
+      return toTemplate(template);
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return null;
+      }
+
+      throw error;
+    }
+  }
+
   async instantiate(templateId: string, payload: InstantiateJobTemplateInput): Promise<Job> {
     const templateRecord = await this.client.jobTemplate.findUnique({ where: { id: templateId } });
     if (!templateRecord) {
@@ -110,6 +135,19 @@ export class JobTemplateService {
     const job = await jobService.findById(jobRecord.id);
     if (!job) throw new Error('Failed to load job after instantiation');
     return job;
+  }
+
+  async deleteTemplate(id: string): Promise<boolean> {
+    try {
+      await this.client.jobTemplate.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 }
 

@@ -10,7 +10,7 @@ export const createVehicleSchema = z.object({
 });
 
 export const updateVehicleSchema = createVehicleSchema.partial().extend({
-  assignedEmployeeId: z.string().optional()
+  assignedEmployeeId: z.string().uuid().nullable().optional()
 });
 
 export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;

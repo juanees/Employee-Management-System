@@ -2,6 +2,7 @@ import { Role as RoleModel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { Role } from './role.types';
 import { CreateRoleInput, UpdateRoleInput } from './role.schema';
+import { isRecordNotFoundError } from '../shared/errors';
 
 class RoleService {
   constructor(private readonly client = prisma) {}
@@ -55,6 +56,19 @@ class RoleService {
     });
 
     return this.toDomain(record);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.client.role.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   async clear() {

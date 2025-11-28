@@ -1,7 +1,12 @@
 import { TravelRequest as TravelRequestModel } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { TravelRequest } from './travel.types';
-import { CreateTravelInput, UpdateTravelStatusInput } from './travel.schema';
+import {
+  CreateTravelInput,
+  UpdateTravelInput,
+  UpdateTravelStatusInput
+} from './travel.schema';
+import { isRecordNotFoundError } from '../shared/errors';
 
 export class TravelService {
   constructor(private readonly client = prisma) {}
@@ -72,6 +77,48 @@ export class TravelService {
     });
 
     return this.toDomain(record);
+  }
+
+  async updateDetails(id: string, payload: UpdateTravelInput): Promise<TravelRequest | null> {
+    const request = await this.client.travelRequest.findUnique({ where: { id } });
+    if (!request) return null;
+
+    const start = payload.startDate ? new Date(payload.startDate) : request.startDate;
+    const end = payload.endDate ? new Date(payload.endDate) : request.endDate;
+
+    if (end < start) {
+      throw new Error('End date must be after start date');
+    }
+
+    const record = await this.client.travelRequest.update({
+      where: { id },
+      data: {
+        ...('employeeId' in payload ? { employeeId: payload.employeeId } : {}),
+        ...('vehicleId' in payload ? { vehicleId: payload.vehicleId ?? null } : {}),
+        ...('origin' in payload ? { origin: payload.origin } : {}),
+        ...('destination' in payload ? { destination: payload.destination } : {}),
+        ...('startDate' in payload ? { startDate: start } : {}),
+        ...('endDate' in payload ? { endDate: end } : {}),
+        ...('purpose' in payload ? { purpose: payload.purpose } : {}),
+        ...('status' in payload ? { status: payload.status! } : {}),
+        ...('approverComments' in payload ? { approverComments: payload.approverComments } : {})
+      }
+    });
+
+    return this.toDomain(record);
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      await this.client.travelRequest.delete({ where: { id } });
+      return true;
+    } catch (error) {
+      if (isRecordNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
   }
 
   async clear() {

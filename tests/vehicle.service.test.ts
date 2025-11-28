@@ -62,4 +62,13 @@ describe('VehicleService.assignEmployee', () => {
     expect(persisted?.status).toBe('maintenance');
     expect(persisted?.assignedEmployeeId).toBeUndefined();
   });
+
+  it('deletes vehicles and reports missing ones', async () => {
+    const vehicle = await createVehicle();
+    const deleted = await vehicleService.delete(vehicle.id);
+    expect(deleted).toBe(true);
+
+    const secondAttempt = await vehicleService.delete(vehicle.id);
+    expect(secondAttempt).toBe(false);
+  });
 });

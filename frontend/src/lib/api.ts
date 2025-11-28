@@ -13,19 +13,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init
   });
 
-  if (!response.ok) {
-    const message = await response
-      .json()
-      .catch(() => ({ message: response.statusText }));
+  const rawBody = response.status === 204 ? '' : await response.text();
+  let parsed: unknown;
 
+  if (rawBody) {
+    try {
+      parsed = JSON.parse(rawBody);
+    } catch {
+      parsed = rawBody;
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      typeof (parsed as { message?: string })?.message === 'string'
+        ? (parsed as { message?: string }).message
+        : response.statusText;
     throw new Error(
-      typeof message?.message === 'string'
-        ? message.message
-        : `Request failed with status ${response.status}`
+      message ?? `Request failed with status ${response.status}`
     );
   }
 
-  return response.json() as Promise<T>;
+  return parsed as T;
 }
 
 export const apiClient = {
@@ -34,5 +43,14 @@ export const apiClient = {
     request<T>(path, {
       method: 'POST',
       body: JSON.stringify(body)
+    }),
+  patch: <T>(path: string, body: unknown) =>
+    request<T>(path, {
+      method: 'PATCH',
+      body: JSON.stringify(body)
+    }),
+  delete: <T>(path: string) =>
+    request<T>(path, {
+      method: 'DELETE'
     })
 };
