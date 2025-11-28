@@ -78,8 +78,8 @@ type ResourcePanelProps<T extends { id: string }> = {
   description: string;
   queryKey: QueryKey;
   listFn: () => Promise<T[]>;
-  createFn: (payload: Record<string, unknown>) => Promise<unknown>;
-  updateFn?: (id: string, payload: Record<string, unknown>) => Promise<unknown>;
+  createFn: (payload: unknown) => Promise<unknown>;
+  updateFn?: (id: string, payload: unknown) => Promise<unknown>;
   deleteFn: (id: string) => Promise<unknown>;
   createTemplate: string;
   updateTemplate?: string;
@@ -358,11 +358,11 @@ function ResourcePanel<T extends { id: string }>({
     setUpdateBody(defaultUpdate);
   }, [defaultUpdate]);
 
-  const parsePayload = (raw: string) => {
+  const parsePayload = (raw: string): unknown => {
     if (!raw.trim()) {
       throw new Error('Payload cannot be empty JSON');
     }
-    return JSON.parse(raw) as Record<string, unknown>;
+    return JSON.parse(raw);
   };
 
   const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
