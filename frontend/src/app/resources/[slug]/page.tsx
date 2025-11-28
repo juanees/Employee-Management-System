@@ -1,5 +1,33 @@
+import type { Metadata } from 'next';
+
+import { resourceDefinitions } from '@/components/resources/resource-config';
 import { ResourceWorkbench } from '@/components/resources/resource-workbench';
 
-export default function ResourceDetailPage({ params }: { params: { slug: string } }) {
+type ResourcePageParams = {
+  slug: string;
+};
+
+const resourceMetadataCache = resourceDefinitions.reduce<Record<string, Metadata>>((acc, definition) => {
+  acc[definition.slug] = {
+    title: `${definition.title} · Resource workspace`,
+    description: definition.description
+  };
+  return acc;
+}, {});
+
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return resourceDefinitions.map((definition) => ({ slug: definition.slug }));
+}
+
+export function generateMetadata({ params }: { params: ResourcePageParams }): Metadata {
+  return resourceMetadataCache[params.slug] ?? {
+    title: 'Resource workspace',
+    description: 'Manage every API resource with a unified CRUD interface.'
+  };
+}
+
+export default function ResourceDetailPage({ params }: { params: ResourcePageParams }) {
   return <ResourceWorkbench slug={params.slug} />;
 }
