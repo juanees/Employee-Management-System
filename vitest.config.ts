@@ -9,6 +9,8 @@ export default defineConfig({
     minThreads: 1,
     sequence: {
       concurrent: false
-    }
+    },
+    include: ['tests/**/*.test.ts'],
+    exclude: ['tests/**/*.test.js']
   }
 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { EmployeeTable } from '@/components/employees/employee-table';
+import { ResourceConsole } from '@/components/resources/resource-console';
 import { useEmployees } from '@/features/employees/hooks';
 
 const timeFormatter = new Intl.DateTimeFormat('en-US', {
@@ -68,6 +69,8 @@ export default function Home() {
         ) : (
           <EmployeeTable employees={data ?? []} />
         )}
+
+        <ResourceConsole />
       </div>
     </div>
   );

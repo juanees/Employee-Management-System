@@ -15,5 +15,17 @@ export const updateTravelStatusSchema = z.object({
   approverComments: z.string().optional()
 });
 
+export const updateTravelSchema = createTravelSchema
+  .partial()
+  .extend({
+    vehicleId: z.string().uuid().nullable().optional(),
+    status: updateTravelStatusSchema.shape.status.optional(),
+    approverComments: updateTravelStatusSchema.shape.approverComments
+  })
+  .refine((payload) => Object.keys(payload).length > 0, {
+    message: 'At least one field must be provided'
+  });
+
 export type CreateTravelInput = z.infer<typeof createTravelSchema>;
 export type UpdateTravelStatusInput = z.infer<typeof updateTravelStatusSchema>;
+export type UpdateTravelInput = z.infer<typeof updateTravelSchema>;
