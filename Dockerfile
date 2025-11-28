@@ -25,6 +25,10 @@ RUN npm prune --omit=dev
 FROM node:20-bookworm-slim AS runner
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 ENV NODE_ENV=production \
     API_PORT=3333 \
     API_HOST=0.0.0.0 \
