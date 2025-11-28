@@ -43,8 +43,10 @@ export function buildApp() {
       ? (error as { statusCode?: number }).statusCode!
       : 500;
 
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
     return reply.code(statusCode).send({
-      error: statusCode >= 500 ? 'Internal server error' : error.message,
+      error: statusCode >= 500 ? 'Internal server error' : errorMessage,
       error_code: statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_FAILED'
     });
   });
