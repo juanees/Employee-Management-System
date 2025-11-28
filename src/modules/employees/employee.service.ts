@@ -67,7 +67,7 @@ export class EmployeeService {
         ...('taxStatus' in payload ? { taxStatus: payload.taxStatus } : {}),
         ...('status' in payload ? { status: payload.status } : {}),
         ...('hiredAt' in payload && payload.hiredAt ? { hiredAt: new Date(payload.hiredAt) } : {}),
-        ...(payload.roles ? { roles: JSON.stringify(unique(payload.roles)) } : {})
+        ...('roles' in payload ? { roles: JSON.stringify(unique(payload.roles ?? [])) } : {})
       }
     });
 

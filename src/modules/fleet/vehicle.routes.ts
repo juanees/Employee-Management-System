@@ -10,8 +10,12 @@ const assignSchema = z.object({
 
 const vehicleRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
-    const body = createVehicleSchema.parse(request.body);
-    const vehicle = await vehicleService.create(body);
+    const result = createVehicleSchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
+    }
+
+    const vehicle = await vehicleService.create(result.data);
     reply.code(201).send(vehicle);
   });
 
@@ -25,16 +29,25 @@ const vehicleRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/:id', async (request, reply) => {
-    const body = updateVehicleSchema.parse(request.body ?? {});
+    const result = updateVehicleSchema.safeParse(request.body ?? {});
+    if (!result.success) {
+      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
+    }
+
     const { id } = request.params as { id: string };
-    const updated = await vehicleService.update(id, body);
+    const updated = await vehicleService.update(id, result.data);
     if (!updated) return reply.code(404).send({ message: 'Vehicle not found' });
     return updated;
   });
 
   app.post('/:id/assign', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const body = assignSchema.parse(request.body ?? {});
+    const result = assignSchema.safeParse(request.body ?? {});
+    if (!result.success) {
+      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
+    }
+
+    const body = result.data;
 
     if (body.employeeId) {
       const employee = await employeeService.findById(body.employeeId);
