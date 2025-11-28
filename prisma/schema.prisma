@@ -15,7 +15,7 @@ model Employee {
   email          String          @unique
   taxStatus      String          @default("unknown")
   status         String          @default("active")
-  roles          String          @default("[]")
+  roles          String          @default("[]") // TODO: replace JSON roles with employee_roles join table once relational permissions are needed for querying and constraints.
   hiredAt        DateTime        @default(now())
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -61,7 +61,7 @@ model Role {
   id          String   @id @default(uuid())
   name        String   @unique
   description String?
-  permissions String   @default("[]")
+  permissions String   @default("[]") // TODO: move permissions into dedicated role_permissions table to enable relational lookups and FK enforcement.
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -70,7 +70,7 @@ model JobTemplate {
   id            String   @id @default(uuid())
   title         String
   description   String?
-  defaultRoles  String   @default("[]")
+  defaultRoles  String   @default("[]") // TODO: convert default roles into normalized template_role rows for better querying and validation once templates evolve.
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   jobs          Job[]

@@ -48,7 +48,9 @@ class RoleService {
       data: {
         ...('name' in payload ? { name: payload.name } : {}),
         ...('description' in payload ? { description: payload.description } : {}),
-        ...(payload.permissions ? { permissions: JSON.stringify(payload.permissions) } : {})
+        ...('permissions' in payload
+          ? { permissions: JSON.stringify(payload.permissions ?? []) }
+          : {})
       }
     });
 
