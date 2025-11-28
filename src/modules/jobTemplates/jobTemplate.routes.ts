@@ -4,12 +4,8 @@ import { createJobTemplateSchema, instantiateJobTemplateSchema } from './jobTemp
 
 const jobTemplateRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
-    const result = createJobTemplateSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
-    const template = await jobTemplateService.createTemplate(result.data);
+    const body = createJobTemplateSchema.parse(request.body);
+    const template = await jobTemplateService.createTemplate(body);
     reply.code(201).send(template);
   });
 
@@ -24,13 +20,9 @@ const jobTemplateRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/:id/instantiate', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const result = instantiateJobTemplateSchema.safeParse(request.body ?? {});
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
+    const body = instantiateJobTemplateSchema.parse(request.body ?? {});
     try {
-      const job = await jobTemplateService.instantiate(id, result.data);
+      const job = await jobTemplateService.instantiate(id, body);
       reply.code(201).send(job);
     } catch (error) {
       const message = (error as Error).message;

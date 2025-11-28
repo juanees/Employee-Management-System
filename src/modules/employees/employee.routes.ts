@@ -4,12 +4,8 @@ import { employeeService } from './employee.service';
 
 const employeeRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
-    const result = createEmployeeSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
-    const employee = await employeeService.create(result.data);
+    const body = createEmployeeSchema.parse(request.body);
+    const employee = await employeeService.create(body);
     reply.code(201).send(employee);
   });
 
@@ -28,14 +24,10 @@ const employeeRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/:id', async (request, reply) => {
-    const result = updateEmployeeSchema.safeParse(request.body ?? {});
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
+    const body = updateEmployeeSchema.parse(request.body ?? {});
     const { id } = request.params as { id: string };
 
-    const updated = await employeeService.update(id, result.data);
+    const updated = await employeeService.update(id, body);
     if (!updated) {
       return reply.code(404).send({ message: 'Employee not found' });
     }

@@ -5,12 +5,8 @@ import { employeeService } from '../employees/employee.service';
 
 const roleRoutes: FastifyPluginAsync = async (app) => {
   app.post('/', async (request, reply) => {
-    const result = createRoleSchema.safeParse(request.body);
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
-    const role = await roleService.create(result.data);
+    const body = createRoleSchema.parse(request.body);
+    const role = await roleService.create(body);
     reply.code(201).send(role);
   });
 
@@ -24,13 +20,9 @@ const roleRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.patch('/:id', async (request, reply) => {
-    const result = updateRoleSchema.safeParse(request.body ?? {});
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
+    const body = updateRoleSchema.parse(request.body ?? {});
     const { id } = request.params as { id: string };
-    const updated = await roleService.update(id, result.data);
+    const updated = await roleService.update(id, body);
     if (!updated) return reply.code(404).send({ message: 'Role not found' });
     return updated;
   });
@@ -40,12 +32,8 @@ const roleRoutes: FastifyPluginAsync = async (app) => {
     const role = await roleService.findById(id);
     if (!role) return reply.code(404).send({ message: 'Role not found' });
 
-    const result = assignRoleSchema.safeParse(request.body ?? {});
-    if (!result.success) {
-      return reply.code(400).send({ message: 'Invalid input', issues: result.error.issues });
-    }
-
-    const employee = await employeeService.assignRole(result.data.employeeId, role.id);
+    const body = assignRoleSchema.parse(request.body ?? {});
+    const employee = await employeeService.assignRole(body.employeeId, role.id);
     if (!employee) return reply.code(404).send({ message: 'Employee not found' });
 
     return { employee, role };
