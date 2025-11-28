@@ -10,12 +10,49 @@ import jobRoutes from './modules/jobs/job.routes';
 import jobTemplateRoutes from './modules/jobTemplates/jobTemplate.routes';
 
 export function buildApp() {
+  const logLevel = process.env.LOG_LEVEL ?? 'debug';
   const app = Fastify({
-    logger: true
+    logger: {
+      level: logLevel
+    }
   });
 
   const allowedOrigins =
     process.env.CORS_ALLOWED_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean) ?? [];
+
+  app.addHook('onRequest', async (request) => {
+    (request as typeof request & { debugStartTime?: bigint }).debugStartTime = process.hrtime.bigint();
+    request.log.debug(
+      {
+        reqId: request.id,
+        method: request.method,
+        url: request.url,
+        ip: request.ip,
+        params: request.params,
+        query: request.query
+      },
+      'Incoming request'
+    );
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    const { debugStartTime } = request as typeof request & { debugStartTime?: bigint };
+    const responseTimeMs =
+      typeof debugStartTime === 'bigint'
+        ? Number(process.hrtime.bigint() - debugStartTime) / 1_000_000
+        : undefined;
+    request.log.debug(
+      {
+        reqId: request.id,
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        responseTimeMs,
+        contentLength: reply.getHeader('content-length')
+      },
+      'Request completed'
+    );
+  });
 
   app.register(cors, {
     origin: allowedOrigins.length > 0 ? allowedOrigins : true
