@@ -686,11 +686,13 @@ const jobTemplateDefinition: ResourceDefinition<JobTemplate> = {
   ]
 };
 
-export const resourceDefinitions: ResourceDefinition<any>[] = [
-  employeeDefinition,
-  vehicleDefinition,
-  travelDefinition,
-  roleDefinition,
-  jobDefinition,
-  jobTemplateDefinition
+type AnyResourceDefinition = ResourceDefinition<{ id: string }>;
+
+export const resourceDefinitions: AnyResourceDefinition[] = [
+  employeeDefinition as AnyResourceDefinition,
+  vehicleDefinition as AnyResourceDefinition,
+  travelDefinition as AnyResourceDefinition,
+  roleDefinition as AnyResourceDefinition,
+  jobDefinition as AnyResourceDefinition,
+  jobTemplateDefinition as AnyResourceDefinition
 ];
