@@ -1,19 +1,25 @@
 import type { Metadata } from 'next';
 
-import { resourceDefinitions } from '@/components/resources/resource-config';
+import {
+  resourceDefinitions,
+  ResourceSlug
+} from '@/components/resources/resource-config';
 import { ResourceWorkbench } from '@/components/resources/resource-workbench';
 
 type ResourcePageParams = {
-  slug: string;
+  slug: ResourceSlug;
 };
 
-const resourceMetadataCache = resourceDefinitions.reduce<Record<string, Metadata>>((acc, definition) => {
-  acc[definition.slug] = {
-    title: `${definition.title} · Resource workspace`,
-    description: definition.description
-  };
-  return acc;
-}, {});
+const resourceMetadataCache = resourceDefinitions.reduce<Record<ResourceSlug, Metadata>>(
+  (acc, definition) => {
+    acc[definition.slug] = {
+      title: `${definition.title} · Resource workspace`,
+      description: definition.description
+    };
+    return acc;
+  },
+  {} as Record<ResourceSlug, Metadata>
+);
 
 export const dynamicParams = false;
 
