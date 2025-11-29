@@ -3,13 +3,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: backend-build
-    working_dir: /app
-    command: ["node", "dist/index.js"]
+      target: backend-runner
     environment:
       NODE_ENV: production
-      PORT: 3333
-      HOST: 0.0.0.0
+      API_PORT: 3333
+      API_HOST: 0.0.0.0
       DATABASE_URL: file:./prisma/prisma/dev.db
     volumes:
       - ./prisma/prisma:/app/prisma/prisma
@@ -20,11 +18,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: frontend-build
-    working_dir: /app/frontend
-    command: ["npm", "run", "start", "--", "--hostname", "0.0.0.0", "--port", "3000"]
+      target: frontend-runner
     environment:
       NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
       NEXT_PUBLIC_API_BASE_URL: http://backend:3333
     depends_on:
       - backend
