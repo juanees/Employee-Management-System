@@ -686,11 +686,26 @@ const jobTemplateDefinition: ResourceDefinition<JobTemplate> = {
   ]
 };
 
-export const resourceDefinitions: ResourceDefinition<any>[] = [
+export const resourceDefinitions = [
   employeeDefinition,
   vehicleDefinition,
   travelDefinition,
   roleDefinition,
   jobDefinition,
   jobTemplateDefinition
-];
+] as const;
+
+export type ResourceDefinitionEntry = (typeof resourceDefinitions)[number];
+export type ResourceSlug = ResourceDefinitionEntry['slug'];
+
+export function getResourceDefinition(slug: string): ResourceDefinitionEntry | undefined {
+  return resourceDefinitions.find((resource) => resource.slug === slug);
+}
+
+export function requireResourceDefinition(slug: ResourceSlug): ResourceDefinitionEntry {
+  const definition = getResourceDefinition(slug);
+  if (!definition) {
+    throw new Error(`Resource definition missing for slug "${slug}"`);
+  }
+  return definition;
+}

@@ -2,12 +2,16 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-import { ResourceDefinition, resourceDefinitions } from '@/components/resources/resource-config';
+import {
+  getResourceDefinition,
+  ResourceDefinition,
+  ResourceSlug
+} from '@/components/resources/resource-config';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notFound } from 'next/navigation';
 
 type ResourceWorkbenchProps = {
-  slug: string;
+  slug: ResourceSlug;
 };
 
 type Identifiable = { id: string };
@@ -15,16 +19,10 @@ type Identifiable = { id: string };
 const pretty = (value: unknown) => JSON.stringify(value, null, 2);
 
 export function ResourceWorkbench({ slug }: ResourceWorkbenchProps) {
-  const definition = useMemo<ResourceDefinition<Identifiable> | undefined>(
-    () => resourceDefinitions.find((resource) => resource.slug === slug) as
-      | ResourceDefinition<Identifiable>
-      | undefined,
-    [slug]
-  );
+  const definition = getResourceDefinition(slug) as ResourceDefinition<Identifiable> | undefined;
 
   if (!definition) {
     notFound();
-    return null;
   }
 
   const queryClient = useQueryClient();
