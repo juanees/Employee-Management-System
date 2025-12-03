@@ -686,7 +686,9 @@ const jobTemplateDefinition: ResourceDefinition<JobTemplate> = {
   ]
 };
 
-export const resourceDefinitions: ResourceDefinition<any>[] = [
+type Resource = Employee | Vehicle | TravelRequest | Role | Job | JobTemplate;
+
+export const resourceDefinitions: ResourceDefinition<Resource>[] = [
   employeeDefinition,
   vehicleDefinition,
   travelDefinition,
